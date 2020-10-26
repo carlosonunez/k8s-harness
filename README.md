@@ -48,3 +48,19 @@
 * See [`.k8sharness.example`](https://github.com/carlosonunez/k8s-harness/blob/master/.k8sharness.example)
   for documentation on how to configure your `.k8sharness` file.
 * Run `k8s-harness --help` to learn how to configure `k8s-harness` to your liking.
+
+## Questions
+
+### Does this replace Docker Compose?
+
+Nope! Docker Compose is excellent for locally running your apps and testing that your app
+works in Docker. However, I've found Compose to be lacking for testing whether my app can run
+with Kubernete's extra features, like `Secret`s and `Ingress` objects. As well, for writing
+Ansible playbooks that provision "hard" Kuberntes infrastructure like installing CRDs, I've found
+having clean Kubernetes clusters that resemble what I'm provisioning in production to be fast
+(or at least faster than waiting for CI/CD to apply my manifests) and cost-effective (since
+I don't need to provision my own Kubernetes clusters externally).
+
+### My production Kubernetes clusters has `$x`. How do I install `$x` in k8s-harness?
+
+This is not supported yet, but is on the roadmap!
