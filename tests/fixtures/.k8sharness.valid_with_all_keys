@@ -1,0 +1,4 @@
+# vi: set ft=yaml:
+setup: setup.sh
+test:  sh -c "echo Look! A test!"
+teardown: teardown.sh

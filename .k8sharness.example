@@ -1,0 +1,17 @@
+---
+# vi: set ft=yaml:
+
+# This is a sample .k8sharness file. Use this to define the test bench to execute in your
+# disposable Kubernetes cluster.
+
+# Define the command that runs your test here! It can be in any language you want.
+tests: echo 'change me'
+
+# Use `setup:` to run a command, script, or other application that provisions your cluster
+# before running your test. You can use this to do things like:
+# - Deploy or modify your application's Helm chart into your test cluster, or
+# - Store temporary metadata required by your application.
+setup: echo 'optionally change me'
+
+# Use `teardown:` to run cleanup tasks before your cluster gets destroyed.
+teardown: echo 'optionally change me'

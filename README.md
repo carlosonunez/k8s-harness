@@ -38,6 +38,45 @@
 (If you're interested in the nitty-gritty of how `k8s-harness` works, check out
 [its tests](https://github.com/carlosonunez/k8s-harness/blob/master/tests) for the details.)
 
+## .k8sharness
+
+`k8s-harness` uses `.k8sharness` files to determine what it should do once its cluster is
+provisioned. An example file is provided at [`.k8sharness.example`](./.k8sharness.example),
+but the crux of how it works is this:
+
+Define your test like this:
+
+```yaml
+test: make test
+```
+
+You can optionally add setup or teardown instructions too:
+
+
+```yaml
+test: make test
+setup: helm install -f testenv.yaml
+teardown: make report
+```
+
+Every command in `test`, `setup`, and `teardown` runs in a `sh` subshell, but you can
+provide a script as well:
+
+```yaml
+test: make test
+setup: helm install -f testenv.yaml
+teardown: ./scripts/run_teardown.sh
+```
+
+If you need to have more control over the subshell, just start your test command with
+`sh -c`:
+
+```yaml
+test: make test
+setup: helm install -f testenv.yaml
+teardown: sh -xc "echo 'I\'m gonna wreck it!'"
+```
+
 ## Installing
 
 - `gem install k8s-harness` if you're installing this standalone, or

@@ -1,0 +1,3 @@
+---
+setup: sh -c "Foo"
+test: bar
