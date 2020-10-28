@@ -1,0 +1,39 @@
+# vim: set ft=ruby:
+num_nodes = ENV["K3S_NUMBER_OF_NODES"] || 2
+memory_per_node = ENV["K3S_NODE_MEMORY_GB"] || 1024
+ssh_pub_key = File.read("#{ENV['VAGRANT_CWD']}/ssh_key.pub").gsub("\n","")
+install_ansible_command = <<-COMMAND
+  apk update
+  if ! apk add ansible
+  then
+    echo "ERROR: Failed to install Ansible on this machine."
+    exit 1
+  fi
+COMMAND
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "maier/alpine-3.6-x86_64"
+  config.vm.provider "virtualbox" do |vb|
+    vb.customize [ "modifyvm", :id, "--memory", memory_per_node ]
+  end
+
+  config.vm.define "k3s-registry" do |node|
+    node.vm.hostname  = "k3s-registry"
+    node.vm.network "private_network", ip: "192.168.50.200"
+    node.vm.network "forwarded_port", guest: 5000, host: 5000
+    node.vm.provision "shell",
+      inline: "echo '#{ssh_pub_key}' >> /home/vagrant/.ssh/authorized_keys"
+    node.vm.provision "shell", inline: install_ansible_command
+  end
+
+  num_nodes.times do |node_id|
+    config.vm.define "k3s-node-#{node_id}" do |node|
+      node.vm.hostname  = "k3s-node-#{node_id}"
+      node.vm.network "private_network", ip: "192.168.50.#{node_id+2}"
+      node.vm.network "forwarded_port", guest: 6443, host: 6443 if node_id == 0
+      node.vm.provision "shell",
+        inline: "echo '#{ssh_pub_key}' >> /home/vagrant/.ssh/authorized_keys"
+      node.vm.provision "shell", inline: install_ansible_command
+    end
+  end
+end

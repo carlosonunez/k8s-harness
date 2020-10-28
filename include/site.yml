@@ -1,0 +1,198 @@
+---
+- hosts: master
+  become: true
+  gather_facts: no
+  tasks:
+    - name: Get this host's IP address
+      shell: "echo $(ip -4 -o addr show eth1 | awk '{print $4}' | cut -f1 -d '/')"
+      register: result
+
+    - set_fact:
+        ip_address: "{{ result.stdout }}"
+
+    - name: Create directories
+      file:
+        path: "{{ item }}"
+        state: directory
+      with_items:
+        - /etc/rancher/k3s
+        - /etc/docker
+
+    - name: Create registry files
+      file:
+        path: "{{ item }}"
+        state: touch
+      with_items:
+        - /etc/rancher/k3s/registries.yaml
+        - /etc/docker/daemon.json
+
+    - name: Configure insecure registries for k3s
+      blockinfile:
+        path: /etc/rancher/k3s/registries.yaml
+        block: |
+          mirrors:
+            "10.0.2.2:5000":
+              endpoint:
+                - "http://10.0.2.2:5000"
+
+    - name: Configure insecure regsitries for containerd
+      block:
+        - name: Create the daemon file
+          blockinfile:
+            path: /etc/docker/daemon.json
+            marker: ""
+            block: |
+              { "insecure-registries": [ "10.0.2.2:5000" ] }
+
+        - name: Remove blank lines
+          lineinfile:
+            path: /etc/docker/daemon.json
+            state: absent
+            regexp: '^$'
+
+    - name: Install Rancher k3s
+      shell: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--node-ip={{ ip_address }} --flannel-iface=eth1" K3S_TOKEN={{ k3s_token }} sh -
+
+    - name: Check if extlinux updated
+      shell: "grep -q cgroup_enable=cpuset /etc/update-extlinux.conf"
+      register: extlinux_enabled_result
+      ignore_errors: true
+
+    - name: Update extlinux per documentation
+      shell: "echo 'default_kernel_opts=\"...  cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory\" >> /etc/update-extlinux.conf'"
+      when: extlinux_enabled_result.rc != 0
+
+    - name: Apply extlinux updates
+      shell: update-extlinux
+      when: extlinux_enabled_result.rc != 0
+
+    - name: Reboot
+      shell: /sbin/reboot
+      when: extlinux_enabled_result.rc != 0
+
+    - name: "Wait for machine"
+      local_action: wait_for host={{ ip_address }} port=22
+
+- hosts: worker
+  become: true
+  tasks:
+    - name: Get this host's IP address
+      shell: "echo $(ip -4 -o addr show eth1 | awk '{print $4}' | cut -f1 -d '/')"
+      register: result
+
+    - set_fact:
+        ip_address: "{{ result.stdout }}"
+
+    - name: Wait for master to become available
+      wait_for:
+        host: 192.168.50.2
+        port: 6443
+
+
+    - name: Create directories
+      file:
+        path: "{{ item }}"
+        state: directory
+      with_items:
+        - /etc/rancher/k3s
+        - /etc/docker
+
+    - name: Create registry files
+      file:
+        path: "{{ item }}"
+        state: touch
+      with_items:
+        - /etc/rancher/k3s/registries.yaml
+        - /etc/docker/daemon.json
+
+    - name: Configure insecure registries for k3s
+      blockinfile:
+        path: /etc/rancher/k3s/registries.yaml
+        block: |
+          mirrors:
+            "10.0.2.2:5000":
+              endpoint:
+                - "http://10.0.2.2:5000"
+
+    - name: Configure insecure regsitries for containerd
+      block:
+        - name: Create the daemon file
+          blockinfile:
+            path: /etc/docker/daemon.json
+            marker: ""
+            block: |
+              { "insecure-registries": [ "10.0.2.2:5000" ] }
+
+        - name: Remove blank lines
+          lineinfile:
+            path: /etc/docker/daemon.json
+            state: absent
+            regexp: '^$'
+
+    - name: Install k3s as worker
+      shell: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--node-ip={{ ip_address }} --flannel-iface=eth1" K3S_URL=https://192.168.50.2:6443 K3S_TOKEN={{ k3s_token }} sh -
+
+    - name: Check if extlinux updated
+      shell: "grep -q cgroup_enable=cpuset /etc/update-extlinux.conf"
+      register: extlinux_enabled_result
+      ignore_errors: true
+
+    - name: Update extlinux per documentation
+      shell: "echo 'default_kernel_opts=\"...  cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory\" >> /etc/update-extlinux.conf'"
+      when: extlinux_enabled_result.rc != 0
+
+    - name: Apply extlinux updates
+      shell: update-extlinux
+      when: extlinux_enabled_result.rc != 0
+
+    - name: Reboot
+      shell: /sbin/reboot
+      when: extlinux_enabled_result.rc != 0
+
+    - name: "Wait for machine"
+      local_action: wait_for host={{ ip_address }} port=22
+
+
+- hosts: registry
+  become: true
+  tasks:
+    - name: Get this host's IP address
+      shell: "echo $(ip -4 -o addr show eth1 | awk '{print $4}' | cut -f1 -d '/')"
+      register: result
+
+    - set_fact:
+        ip_address: "{{ result.stdout }}"
+
+
+    - name: Install Docker
+      apk:
+        name:
+        - docker
+
+    - name: Add docker as service
+      shell: "rc-update add docker boot"
+
+    - name: Reboot
+      shell: /sbin/reboot
+
+    - name: "Wait for machine"
+      local_action: wait_for host={{ ip_address }} port=22
+
+    - name: Start docker daemon
+      shell: "service docker start"
+      retries: 5
+      delay: 2
+
+    - name: Confirm Docker available
+      shell: "docker run --rm hello-world"
+      retries: 5
+      delay: 2
+
+    - name: Check for instances of registry
+      shell: "sudo docker ps | grep -q registry"
+      register: result
+      ignore_errors: true
+
+    - name: Start Docker Registry
+      shell: "sudo docker run -d --restart=always -p 5000:5000 --name registry registry:2"
+      when: result.rc != 0

@@ -43,3 +43,7 @@ install_rvm:
 test: is_rvm_installed create_env
 test:
 	rspec -I $(ROOTDIR)/tests -I $(ROOTDIR)/lib --tag ~@wip --fail-fast --format documentation tests/
+
+test_verbose: is_rvm_installed create_env
+test_verbose:
+	LOG_LEVEL=DEBUG rspec -I $(ROOTDIR)/tests -I $(ROOTDIR)/lib --tag ~@wip --fail-fast --format documentation tests/
