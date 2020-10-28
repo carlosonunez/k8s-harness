@@ -22,15 +22,34 @@
 
 ## How it works
 
-[[ _insert k8s-harness flow diagram when ready_ ]]
+![](./content/how_it_works.png)
 
 `k8s-harness` is simple:
 
-1. Run `k8s-harness`.
-2. `k8s-harness` will look for a `.k8sharness` file in the root of your repository,
-3. Once found, it will create a two-node [k3s](https://github.com/rancher/k3s) cluster
+1. [Create](#.k8sharness) a new `.k8sharness` file.
+2. Run your tests! `k8s-harness run`
+
+`run` can take a long time depending on your network connection. If you want to see more
+details behind what's going on, enable debug output like this:
+
+```sh
+$: k8s-harness --debug run
+```
+
+or this:
+
+```sh
+$: LOG_LEVEL=debug k8s-harness run
+```
+
+### The nitty-gritty
+
+Here's how it really works:
+
+1. `k8s-harness` will look for a `.k8sharness` file in the root of your repository,
+2. Once found, it will create a two-node [k3s](https://github.com/rancher/k3s) cluster
    on your machine with [Vagrant](https://vagrantup.com) and [Ansible](https://ansible.io),
-4. `k8s-harness` will also provision a local insecure Docker registry into which you can push
+3. `k8s-harness` will also provision a local insecure Docker registry into which you can push
    your app's Docker images,
 4. `k8s-harness` will run your tests as defined by `.k8sharness` in a Bash subshell,
 5. `k8s-harness` destroys the cluster (unless you keep it up with `--disable-teardown`).

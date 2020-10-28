@@ -28,6 +28,8 @@ module KubernetesHarness
     end
 
     def self.create!
+      RequiredSoftware.ensure_installed_or_exit!
+      Metadata.initialize!
       vagrant_up_disposable_cluster_or_exit!
       ClusterInfo.new(master_ip_address_command: master_ip_address_command,
                       worker_ip_addresses_command: worker_ip_addresses_command,
@@ -39,7 +41,7 @@ module KubernetesHarness
       commands = []
       Constants::WORKER_NODE_NAMES.each do |node|
         args = ['-c',
-                "\"ip addr show dev eth0 | grep \'\\<inet\\>\' | awk \'{print $2}\' | cut -f1 -d \'/\'\"",
+                "\"ip addr show dev eth1 | grep \'\\<inet\\>\' | awk \'{print \\$2}\' | cut -f1 -d \'/\'\"",
                 node]
         command = Vagrant.new_command('ssh', args)
         command.execute!
@@ -51,7 +53,7 @@ module KubernetesHarness
     def self.master_ip_address_command
       args = [
         '-c',
-        "\"ip addr show dev eth0 | grep \'\\<inet\\>\' | awk \'{print $2}\' | cut -f1 -d \'/\'\"",
+        "\"ip addr show dev eth1 | grep \'\\<inet\\>\' | awk \'{print \\$2}\' | cut -f1 -d \'/\'\"",
         Constants::MASTER_NODE_NAME.to_s
       ]
       command = Vagrant.new_command('ssh', args)
@@ -67,7 +69,9 @@ module KubernetesHarness
       ]
       command = Vagrant.new_command('ssh', args)
       command.execute!
-      command
+      path = command.stdout
+      KubernetesHarness.logger.warn('No kubeconfig created!') if path.empty?
+      path
     end
 
     def self.cluster_ssh_key
@@ -78,7 +82,11 @@ module KubernetesHarness
       KubernetesHarness.logger.debug('🚀 Creating new disposable cluster 🚀')
       vagrant_command = Vagrant.new_command('up')
       vagrant_command.execute!
-      raise 'Failed to start Kubernetes cluster' unless vagrant_command.success?
+      raise failed_cluster_error(vagrant_command) unless vagrant_command.success?
+    end
+
+    def self.failed_cluster_error(command)
+      raise "Failed to start Kubernetes cluster. Here's why:\n\n#{command.stderr}"
     end
 
     private_class_method :vagrant_up_disposable_cluster_or_exit!, :master_ip_address_command

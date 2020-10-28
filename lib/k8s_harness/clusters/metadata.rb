@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'fileutils'
 require 'k8s_harness/paths'
 
 module KubernetesHarness
@@ -10,11 +11,11 @@ module KubernetesHarness
     # This module handles all of that.
     module Metadata
       def self.default_dir
-        "#{Dir.pwd}/.k8sharness_data"
+        "#{ENV['PWD']}/.k8sharness_data"
       end
 
       def self.create_dir!
-        FileUtils.mkdir_p default_dir unless Dir.exist? default_dir
+        ::FileUtils.mkdir_p default_dir unless Dir.exist? default_dir
       end
 
       def self.initialize!

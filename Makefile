@@ -42,8 +42,38 @@ install_rvm:
 
 test: is_rvm_installed create_env
 test:
-	rspec -I $(ROOTDIR)/tests -I $(ROOTDIR)/lib --tag ~@wip --fail-fast --format documentation tests/
+	rspec -I $(ROOTDIR)/tests -I $(ROOTDIR)/lib \
+		--tag ~@wip \
+		--tag ~@integration \
+		--fail-fast \
+		--format \
+		documentation tests/
+
+build: is_rvm_installed
+build:
+	gem build --quiet --silent -o output/k8s_harness.gem k8s_harness.gemspec && \
+		gem install --quiet --silent output/k8s_harness.gem
 
 test_verbose: is_rvm_installed create_env
 test_verbose:
-	LOG_LEVEL=DEBUG rspec -I $(ROOTDIR)/tests -I $(ROOTDIR)/lib --tag ~@wip --fail-fast --format documentation tests/
+	LOG_LEVEL=DEBUG rspec -I $(ROOTDIR)/tests -I $(ROOTDIR)/lib \
+						--tag ~@wip \
+						--tag ~@integration\
+						--fail-fast \
+						--format documentation tests/
+
+test_debug: test_verbose
+
+integration: is_rvm_installed create_env build
+integration:
+	rspec -I $(ROOTDIR)/tests -I $(ROOTDIR)/lib --tag @integration --fail-fast \
+		--format documentation \
+		tests/integration
+	
+integration_verbose: is_rvm_installed create_env build
+integration_verbose:
+	LOG_LEVEL=DEBUG rspec -I $(ROOTDIR)/tests -I $(ROOTDIR)/lib --tag @integration --fail-fast \
+		--format documentation \
+		tests/integration
+
+integration_debug: integration_verbose

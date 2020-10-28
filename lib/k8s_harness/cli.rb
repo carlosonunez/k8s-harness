@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'optparse'
-require 'k8s_harness/harness_file'
+require 'k8s_harness/subcommand'
 
 # KubernetesHarness
 module KubernetesHarness
@@ -19,20 +19,21 @@ module KubernetesHarness
           opts.separator 'Runs tests'
           opts.separator ''
           opts.separator 'Commands:'
-          opts.on_tail('-h', '--help', 'Displays this help message') do
+          opts.on('-h', '--help', 'Displays this help message') do
+            add_option(options: { show_usage: true }, subcommand: :run)
             puts opts
           end
         end
       },
       validate: {
         description: 'Validates .k8sharness files',
-        entrypoint: KubernetesHarness::HarnessFile.method(:validate),
         option_parser: OptionParser.new do |opts|
           opts.banner = 'Usage: k8s-harness validate [options]'
           opts.separator 'Validates that a .k8sharness file is correct'
           opts.separator ''
           opts.separator 'Commands:'
-          opts.on_tail('-h', '--help', 'Displays this help message') do
+          opts.on('-h', '--help', 'Displays this help message') do
+            add_option(options: { show_usage: true }, subcommand: :validate)
             puts opts
           end
         end
@@ -46,7 +47,7 @@ module KubernetesHarness
       opts.separator 'Sub-commands:'
       opts.separator ''
       @subcommands.each_key do |subcommand|
-        opts.separator "#{subcommand.to_s.ljust(20)} #{@subcommands[subcommand][:description]}"
+        opts.separator "    #{subcommand.to_s.ljust(20)} #{@subcommands[subcommand][:description]}"
       end
       opts.separator ''
       opts.separator 'See k8s-harness [subcommand] --help for more specific options.'
@@ -55,33 +56,45 @@ module KubernetesHarness
       opts.on('-d', '--debug', 'Show debug output') do
         add_option(options: { enable_debug_logging: true })
       end
-      opts.on_tail('-h', '--help', 'Displays this help message') do
+      opts.on('-h', '--help', 'Displays this help message') do
         add_option(options: { help: opts.help })
       end
+    end
+
+    def self.parse(args)
+      args.push('-h') if args.empty? || subcommands_missing?(args)
+      @base_command.order!(args)
+      subcommand = args.shift
+      if subcommand.nil?
+        puts @options[:base][:help]
+      else
+        enable_debug_logging_if_present
+        @subcommands[subcommand.to_sym][:option_parser].order!(args)
+        call_entrypoint(subcommand)
+      end
+    end
+
+    def self.enable_debug_logging_if_present
+      KubernetesHarness::Logging.enable_debug_logging if @options[:base][:enable_debug_logging]
+    end
+
+    def self.subcommands_missing?(args)
+      args.select { |arg| arg.match?(/^[a-z]/) }.empty?
     end
 
     def self.add_option(options:, subcommand: nil)
       if subcommand.nil?
         @options[:base].merge!(options)
       else
+        @options[subcommand] = {} unless @options.key subcommand
         @options[subcommand].merge!(options)
       end
     end
 
-    def self.parse(args)
-      args.push('-h') if args.empty?
-      @base_command.order!(args)
-      subcommand = args.shift
-      if subcommand.nil?
-        puts @options[:base][:help]
-      else
-        @subcommands[subcommand.to_sym][:option_parser].order!(args)
-        call_entrypoint(subcommand)
-      end
+    def self.call_entrypoint(subcommand)
+      KubernetesHarness::Subcommand.method(subcommand.to_sym).call(@options[subcommand.to_sym])
     end
 
-    def self.call_entrypoint(subcommand)
-      @subcommands[subcommand.to_sym][:entrypoint].call(@options)
-    end
+    private_class_method :call_entrypoint, :add_option, :subcommands_missing?
   end
 end

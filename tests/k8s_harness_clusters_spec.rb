@@ -12,7 +12,7 @@ describe 'Given a function that creates new disposable clusters' do
     end
     context "And I'm creating metadata" do
       example 'Then it creates a hidden directory for metadata' do
-        allow(Dir).to receive(:pwd).and_return('/foo')
+        ENV['PWD'] = '/foo'
         FakeFS do
           FakeFS::FileSystem.clone(KubernetesHarness::Paths.include_dir)
           KubernetesHarness::Clusters::Metadata.create_dir!
@@ -25,7 +25,7 @@ describe 'Given a function that creates new disposable clusters' do
         allow(KubernetesHarness::Clusters::Metadata)
           .to receive(:create_dir!)
           .and_return true
-        allow(Dir).to receive(:pwd).and_return('/foo')
+        ENV['PWD'] = '/foo'
         FakeFS do
           FileUtils.mkdir_p '/foo/.k8sharness_data'
           KubernetesHarness::Clusters::Metadata.initialize!
@@ -59,12 +59,13 @@ describe 'Given a function that creates new disposable clusters' do
           .and_return(mocked_software)
         mocked_software.each_key do |app|
           mocked_result = mocked_software[app][:program_name] == 'baz'
+          command_string = "sh -c '#{mocked_software[app][:version_check]}; exit $?'"
           shellcommand_double = double(KubernetesHarness::ShellCommand,
                                        success?: mocked_result,
                                        execute!: nil)
           allow(KubernetesHarness::ShellCommand)
             .to receive(:new)
-            .with(mocked_software[app][:version_check])
+            .with(command_string)
             .and_return shellcommand_double
         end
         error_message = <<~MESSAGE.strip
@@ -76,7 +77,7 @@ describe 'Given a function that creates new disposable clusters' do
           Please consult the README to learn what you'll need to install \
           before using k8s-harness.
         MESSAGE
-        expect { KubernetesHarness::Clusters::RequiredSoftware.installed? }
+        expect { KubernetesHarness::Clusters::RequiredSoftware.ensure_installed_or_exit! }
           .to raise_error(error_message)
       end
       example 'Then it passes if I have all of the necessary software' do
@@ -97,19 +98,20 @@ describe 'Given a function that creates new disposable clusters' do
           shellcommand_double = double(KubernetesHarness::ShellCommand,
                                        success?: true,
                                        execute!: nil)
+          command_string = "sh -c '#{mocked_software[app][:version_check]}; exit $?'"
           allow(KubernetesHarness::ShellCommand)
             .to receive(:new)
-            .with(mocked_software[app][:version_check])
+            .with(command_string)
             .and_return shellcommand_double
         end
-        expect { KubernetesHarness::Clusters::RequiredSoftware.installed? }
+        expect { KubernetesHarness::Clusters::RequiredSoftware.ensure_installed_or_exit! }
           .not_to raise_error
       end
     end
   end
   context 'When I create the disposable cluster' do
     before(:each) do
-      allow(Dir).to receive(:pwd).and_return('/foo')
+      ENV['PWD'] = '/foo'
       @mocked_env = {
         VAGRANT_CWD: KubernetesHarness::Clusters::Metadata.default_dir,
         ANSIBLE_HOST_KEY_CHECKING: 'no',
@@ -121,7 +123,7 @@ describe 'Given a function that creates new disposable clusters' do
       base_ip_address_command = [
         'vagrant ssh',
         '-c',
-        "\"ip addr show dev eth0 | grep \'\\<inet\\>\' | awk \'{print $2}\' | cut -f1 -d \'/\'\"",
+        "\"ip addr show dev eth1 | grep \'\\<inet\\>\' | awk \'{print \\$2}\' | cut -f1 -d \'/\'\"",
         '%%node%%'
       ].join(' ')
       master_ip_address_command = base_ip_address_command.gsub('%%node%%', 'k3s-node-0')
@@ -136,6 +138,9 @@ describe 'Given a function that creates new disposable clusters' do
                              execute!: true,
                              stdout: '',
                              environment: @mocked_env)
+      allow(KubernetesHarness::Clusters::RequiredSoftware)
+        .to receive(:ensure_installed_or_exit!)
+        .and_return(true)
       allow(KubernetesHarness::ShellCommand)
         .to receive(:new)
         .with(master_ip_address_command, environment: @mocked_env)

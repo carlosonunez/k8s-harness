@@ -16,10 +16,12 @@ module KubernetesHarness
         }
       end
 
-      def self.installed?
+      def self.ensure_installed_or_exit!
         missing = []
         software.each_key do |app|
-          command = KubernetesHarness::ShellCommand.new(software[app][:version_check])
+          KubernetesHarness.logger.debug("Checking that this is installed: #{app}")
+          command_string = "sh -c '#{software[app][:version_check]}; exit $?'"
+          command = KubernetesHarness::ShellCommand.new(command_string)
           command.execute!
           missing.push software[app][:program_name] unless command.success?
         end

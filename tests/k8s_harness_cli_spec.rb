@@ -11,8 +11,8 @@ describe 'Given a CLI that runs k8s-harness' do
 
       Sub-commands:
 
-      #{'run'.ljust(20)} Runs tests
-      #{'validate'.ljust(20)} Validates .k8sharness files
+          #{'run'.ljust(20)} Runs tests
+          #{'validate'.ljust(20)} Validates .k8sharness files
 
       See k8s-harness [subcommand] --help for more specific options.
 
