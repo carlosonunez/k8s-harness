@@ -22,6 +22,11 @@ module KubernetesHarness
         create_dir!
         FileUtils.cp_r("#{KubernetesHarness::Paths.include_dir}/.", default_dir)
       end
+
+      def self.write!(file_name, content)
+        fp = File.join default_dir, file_name
+        File.write(fp, content)
+      end
     end
   end
 end

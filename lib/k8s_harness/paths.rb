@@ -10,5 +10,9 @@ module KubernetesHarness
     def self.include_dir
       File.join root_dir, 'include'
     end
+
+    def self.conf_dir
+      File.join root_dir, 'conf'
+    end
   end
 end

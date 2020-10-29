@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'yaml'
+require 'k8s_harness/paths'
 require 'k8s_harness/shell_command'
 
 module KubernetesHarness
@@ -8,22 +10,22 @@ module KubernetesHarness
     # on the user's machine.
     module RequiredSoftware
       def self.software
-        {
-          vagrant: {
-            program_name: 'vagrant',
-            version_check: 'vagrant --version'
-          }
-        }
+        YAML.safe_load(
+          File.read(File.join(KubernetesHarness::Paths.conf_dir, 'required_software.yaml')),
+          symbolize_names: true
+        )
       end
 
       def self.ensure_installed_or_exit!
         missing = []
-        software.each_key do |app|
-          KubernetesHarness.logger.debug("Checking that this is installed: #{app}")
-          command_string = "sh -c '#{software[app][:version_check]}; exit $?'"
+        software.each do |app_data|
+          name = app_data[:name]
+          version_check = app_data[:version_check]
+          KubernetesHarness.logger.debug("Checking that this is installed: #{name}")
+          command_string = "sh -c '#{version_check}; exit $?'"
           command = KubernetesHarness::ShellCommand.new(command_string)
           command.execute!
-          missing.push software[app][:program_name] unless command.success?
+          missing.push name unless command.success?
         end
 
         raise show_missing_software_message(missing) unless missing.empty?

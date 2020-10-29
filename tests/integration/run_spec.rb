@@ -12,6 +12,10 @@ describe 'Given the k8s-harness app' do
       KubernetesHarness::CLI.parse(argv)
     end
 
+    after(:each) do
+      FakeFS.activate!
+    end
+
     example 'Then a test should have executed', :integration do
       expect($STDERR).to eq ''
       expect($STDOUT).to match(/Your test ran successfully!/)

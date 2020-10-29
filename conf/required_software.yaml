@@ -1,0 +1,5 @@
+---
+- name: vagrant
+  version_check: vagrant --version
+- name: ansible-playbook
+  version_check: ansible-playbook --version

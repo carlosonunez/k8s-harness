@@ -71,7 +71,9 @@
       when: extlinux_enabled_result.rc != 0
 
     - name: "Wait for machine"
-      local_action: wait_for host={{ ip_address }} port=22
+      become: false
+      register: wait_result
+      local_action: wait_for host={{ ip_address }} port=22 timeout=300 connect_timeout=300
 
 - hosts: worker
   become: true
@@ -84,7 +86,10 @@
         ip_address: "{{ result.stdout }}"
 
     - name: Wait for master to become available
+      register: wait_result
       wait_for:
+        timeout: 300
+        connect_timeout: 300
         host: 192.168.50.2
         port: 6443
 
@@ -150,7 +155,9 @@
       when: extlinux_enabled_result.rc != 0
 
     - name: "Wait for machine"
-      local_action: wait_for host={{ ip_address }} port=22
+      become: false
+      register: wait_result
+      local_action: wait_for host={{ ip_address }} port=22 timeout=300 connect_timeout=300
 
 
 - hosts: registry
@@ -176,7 +183,9 @@
       shell: /sbin/reboot
 
     - name: "Wait for machine"
-      local_action: wait_for host={{ ip_address }} port=22
+      become: false
+      register: wait_result
+      local_action: wait_for host={{ ip_address }} port=22 timeout=300 connect_timeout=300
 
     - name: Start docker daemon
       shell: "service docker start"
