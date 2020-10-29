@@ -7,8 +7,8 @@ module KubernetesHarness
   @logger = Logger.new($stdout)
   @logger.level = ENV['LOG_LEVEL'] || Logger::WARN
   @nice_logger = Logger.new($stdout)
-  @nice_logger.formatter = proc do |_sev, _datetime, _app, message|
-    "--> #{message}\n"
+  @nice_logger.formatter = proc do |_sev, datetime, _app, message|
+    "--> [#{datetime.strftime('%F %T %z')}] #{message}\n"
   end
   def self.logger
     @logger

@@ -116,4 +116,39 @@ describe 'Given a function that validates .k8sharness files' do
     end
   end
 end
+
+describe 'Given a function that sets up a test suite' do
+  context 'When the Harness file does not have a setup instruction' do
+    example 'Then it does not run' do
+      harness_file_double = {
+        test: 'foo'
+      }
+      allow(KubernetesHarness::HarnessFile)
+        .to receive(:render)
+        .and_return(harness_file_double)
+      expect(KubernetesHarness::HarnessFile.execute_setup!({}))
+        .to be nil
+    end
+  end
+  context 'When the Harness file does have a setup instruction' do
+    example 'Then it runs' do
+      command_double = double(KubernetesHarness::ShellCommand,
+                              command: 'sh -c "bar"',
+                              execute!: true)
+      harness_file_mock = {
+        setup: 'sh -c "bar"',
+        test: 'sh -c "foo"'
+      }
+      allow(KubernetesHarness::HarnessFile)
+        .to receive(:render)
+        .and_return(harness_file_mock)
+      allow(KubernetesHarness::ShellCommand)
+        .to receive(:new)
+        .with('sh -c "bar"')
+        .and_return(command_double)
+      expect(KubernetesHarness::HarnessFile.execute_setup!({}))
+        .to be true
+    end
+  end
+end
 # rubocop:enable Metrics/BlockLength

@@ -23,6 +23,9 @@ module KubernetesHarness
             add_option(options: { show_usage: true }, subcommand: :run)
             puts opts
           end
+          opts.on('--disable-teardown', 'Keeps the cluster up for local testing') do
+            add_option(options: { disable_teardown: true }, subcommand: :run)
+          end
         end
       },
       validate: {
@@ -30,6 +33,19 @@ module KubernetesHarness
         option_parser: OptionParser.new do |opts|
           opts.banner = 'Usage: k8s-harness validate [options]'
           opts.separator 'Validates that a .k8sharness file is correct'
+          opts.separator ''
+          opts.separator 'Commands:'
+          opts.on('-h', '--help', 'Displays this help message') do
+            add_option(options: { show_usage: true }, subcommand: :validate)
+            puts opts
+          end
+        end
+      },
+      destroy: {
+        description: 'Deletes a live cluster provisioned by k8s-harness WITHOUT WARNING.',
+        option_parser: OptionParser.new do |opts|
+          opts.banner = 'Usage: k8s-harness destroy [options]'
+          opts.separator 'Deletes live clusters provisioned by k8s-harness WITHOUT WARNING'
           opts.separator ''
           opts.separator 'Commands:'
           opts.on('-h', '--help', 'Displays this help message') do

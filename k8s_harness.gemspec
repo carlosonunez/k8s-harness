@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
   s.description = File.read('README.md')
   s.authors     = ['Carlos Nunez']
   s.email       = 'dev@carlosnunez.me'
-  s.files       = Dir['./lib/**/*.rb', './include/**']
+  s.files       = Dir['./lib/**/*.rb', './include/**', './conf/**']
   s.homepage    = 'https://github.com/carlosonunez/k8s-harness'
   s.license = 'MIT'
 end

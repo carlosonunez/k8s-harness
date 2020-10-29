@@ -24,8 +24,15 @@ module KubernetesHarness
       end
 
       def self.write!(file_name, content)
+        KubernetesHarness.logger.debug "Creating new metadata: #{file_name}"
         fp = File.join default_dir, file_name
         File.write(fp, content)
+      end
+
+      def self.delete!(file_name)
+        KubernetesHarness.logger.debug "Deleting from metadata: #{file_name}"
+        fp = File.join default_dir, file_name
+        FileUtils.rm(fp)
       end
     end
   end
