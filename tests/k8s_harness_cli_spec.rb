@@ -13,6 +13,7 @@ describe 'Given a CLI that runs k8s-harness' do
 
           #{'run'.ljust(20)} Runs tests
           #{'validate'.ljust(20)} Validates .k8sharness files
+          #{'destroy'.ljust(20)} Deletes a live cluster provisioned by k8s-harness WITHOUT WARNING.
 
       See k8s-harness [subcommand] --help for more specific options.
 

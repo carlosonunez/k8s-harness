@@ -109,6 +109,21 @@ describe 'Given a function that creates new disposable clusters' do
       end
     end
   end
+
+  context 'When I create SSH keys' do
+    example 'Then it creates the keypair' do
+      ssh_keygen_command = "ssh-keygen -t rsa -f '/foo/.k8sharness_data/ssh_key' -q -N ''"
+      command_double = double(KubernetesHarness::ShellCommand,
+                              command: ssh_keygen_command,
+                              execute!: true,
+                              exitcode: 0)
+      expect(KubernetesHarness::ShellCommand)
+        .to receive(:new)
+        .with(ssh_keygen_command)
+        .and_return(command_double)
+      KubernetesHarness::Clusters.create_ssh_key!
+    end
+  end
   context 'When I create the disposable cluster' do
     before(:each) do
       ENV['PWD'] = '/foo'
@@ -126,39 +141,33 @@ describe 'Given a function that creates new disposable clusters' do
         "\"ip addr show dev eth1 | grep \'\\<inet\\>\' | awk \'{print \\$2}\' | cut -f1 -d \'/\'\"",
         '%%node%%'
       ].join(' ')
-      master_ip_address_command = base_ip_address_command.gsub('%%node%%', 'k3s-node-0')
-      worker_ip_address_command = base_ip_address_command.gsub('%%node%%', 'k3s-node-1')
-      docker_registry_command = base_ip_address_command.gsub('%%node%%', 'k3s-registry')
-      master_double = double(KubernetesHarness::ShellCommand,
-                             command: master_ip_address_command,
-                             execute!: true,
-                             stdout: '',
-                             environment: @mocked_env)
-      worker_double = double(KubernetesHarness::ShellCommand,
-                             command: worker_ip_address_command,
-                             execute!: true,
-                             stdout: '',
-                             environment: @mocked_env)
-      registry_double = double(KubernetesHarness::ShellCommand,
-                               command: docker_registry_command,
-                               execute!: true,
-                               stdout: '',
-                               environment: @mocked_env)
+      master_ip_address_command = { master: base_ip_address_command.gsub('%%node%%', 'k3s-node-0') }
+      worker_ip_address_command = { worker: base_ip_address_command.gsub('%%node%%', 'k3s-node-1') }
+      docker_registry_command = { registry: base_ip_address_command.gsub('%%node%%', 'k3s-registry') }
+      all_command_mocks = {}
+      [master_ip_address_command,
+       worker_ip_address_command,
+       docker_registry_command].each do |kvp|
+        double_name = kvp.keys.first
+        command = kvp[double_name]
+        shell_command_mock = double(KubernetesHarness::ShellCommand,
+                                    command: command,
+                                    execute!: true,
+                                    stdout: '',
+                                    exitcode: 0,
+                                    environment: @mocked_env)
+        allow(KubernetesHarness::ShellCommand)
+          .to receive(:new)
+          .with(command, environment: @mocked_env)
+          .and_return(shell_command_mock)
+        all_command_mocks[double_name] = shell_command_mock
+      end
+      allow(KubernetesHarness::Clusters)
+        .to receive(:create_ssh_key!)
+        .and_return true
       allow(KubernetesHarness::Clusters::RequiredSoftware)
         .to receive(:ensure_installed_or_exit!)
         .and_return(true)
-      allow(KubernetesHarness::ShellCommand)
-        .to receive(:new)
-        .with(master_ip_address_command, environment: @mocked_env)
-        .and_return(master_double)
-      allow(KubernetesHarness::ShellCommand)
-        .to receive(:new)
-        .with(worker_ip_address_command, environment: @mocked_env)
-        .and_return(worker_double)
-      allow(KubernetesHarness::ShellCommand)
-        .to receive(:new)
-        .with(docker_registry_command, environment: @mocked_env)
-        .and_return(registry_double)
       allow(KubernetesHarness::Clusters)
         .to receive(:vagrant_up_disposable_cluster_or_exit!)
         .and_return true
@@ -170,9 +179,9 @@ describe 'Given a function that creates new disposable clusters' do
         .and_return '/path/to/ssh/key'
       expect(KubernetesHarness::Clusters::ClusterInfo)
         .to receive(:new)
-        .with(master_ip_address_command: master_double,
-              worker_ip_addresses_command: [worker_double],
-              docker_registry_command: registry_double,
+        .with(master_ip_address_command: all_command_mocks[:master],
+              worker_ip_addresses_command: [all_command_mocks[:worker]],
+              docker_registry_command: all_command_mocks[:registry],
               kubeconfig_path: '/path/to/kubeconfig',
               ssh_key_path: '/path/to/ssh/key')
       expect(KubernetesHarness::Clusters::Metadata)
@@ -181,8 +190,20 @@ describe 'Given a function that creates new disposable clusters' do
       FileUtils.mkdir_p('/foo')
       KubernetesHarness::Clusters.create!
     end
+  end
 
+  context 'When I provision the cluster' do
+    before(:each) do
+      ENV['PWD'] = '/foo'
+      @mocked_env = {
+        VAGRANT_CWD: KubernetesHarness::Clusters::Metadata.default_dir,
+        ANSIBLE_HOST_KEY_CHECKING: 'no',
+        ANSIBLE_SSH_ARGS: '-o IdentitiesOnly=true'
+      }
+    end
     example 'Then a cluster is provisioned once it is created' do
+      # No, rubocop, the quotes are needed here.
+      # rubocop: disable Lint/PercentStringArray
       ansible_playbook_base_command = %w[
         ansible-playbook
         -i /metadata_dir/inventory
@@ -192,6 +213,7 @@ describe 'Given a function that creates new disposable clusters' do
         --private-key /metadata_dir/ssh_key
         /metadata_dir/site.yml
       ].join(' ')
+      # rubocop: enable Lint/PercentStringArray
       cluster_info_double = double(
         KubernetesHarness::Clusters::ClusterInfo,
         master_ip_address: '1.2.3.4',
@@ -204,40 +226,31 @@ describe 'Given a function that creates new disposable clusters' do
       ansible_playbook_master_command = ansible_playbook_base_command.gsub('<HOST>', '1.2.3.4')
       ansible_playbook_worker_command = ansible_playbook_base_command.gsub('<HOST>', '4.5.6.7')
       ansible_playbook_registry_command = ansible_playbook_base_command.gsub('<HOST>', '8.9.0.1')
-      mocked_ansible_env = @mocked_env.reject! { |key| key.match? 'VAGRANT' }
-      master_command_double = double(KubernetesHarness::ShellCommand,
-                                     command: ansible_playbook_master_command,
-                                     execute!: true,
-                                     stdout: '',
-                                     exitcode: 0,
-                                     environment: mocked_ansible_env)
-      worker_command_double = double(KubernetesHarness::ShellCommand,
-                                     command: ansible_playbook_worker_command,
-                                     execute!: true,
-                                     stdout: '',
-                                     exitcode: 0,
-                                     environment: mocked_ansible_env)
-      registry_command_double = double(KubernetesHarness::ShellCommand,
-                                       command: ansible_playbook_registry_command,
-                                       execute!: true,
-                                       stdout: '',
-                                       exitcode: 0,
-                                       environment: mocked_ansible_env)
+      [
+        ansible_playbook_worker_command,
+        ansible_playbook_registry_command,
+        ansible_playbook_master_command
+      ].each do |command|
+        shell_command_mock = double(KubernetesHarness::ShellCommand,
+                                    command: command,
+                                    execute!: true,
+                                    stdout: '',
+                                    exitcode: 0,
+                                    success?: true)
+        allow(KubernetesHarness::ShellCommand)
+          .to receive(:new)
+          .with(command,
+                environment: @mocked_env.reject do |key|
+                               key.match? 'VAGRANT'
+                             end)
+          .and_return(shell_command_mock)
+      end
+      allow(KubernetesHarness::Clusters)
+        .to receive(:create_ssh_key!)
+        .and_return true
       allow(KubernetesHarness::Clusters::Metadata)
         .to receive(:default_dir)
         .and_return('/metadata_dir')
-      expect(KubernetesHarness::ShellCommand)
-        .to receive(:new)
-        .with(ansible_playbook_master_command, environment: @mocked_env)
-        .and_return(master_command_double)
-      expect(KubernetesHarness::ShellCommand)
-        .to receive(:new)
-        .with(ansible_playbook_worker_command, environment: @mocked_env)
-        .and_return(worker_command_double)
-      expect(KubernetesHarness::ShellCommand)
-        .to receive(:new)
-        .with(ansible_playbook_registry_command, environment: @mocked_env)
-        .and_return(registry_command_double)
       expect(KubernetesHarness::Clusters.provision!(cluster_info_double))
         .to be true
     end

@@ -134,7 +134,9 @@ describe 'Given a function that sets up a test suite' do
     example 'Then it runs' do
       command_double = double(KubernetesHarness::ShellCommand,
                               command: 'sh -c "bar"',
-                              execute!: true)
+                              execute!: true,
+                              stderr: '',
+                              stdout: 'Bar.')
       harness_file_mock = {
         setup: 'sh -c "bar"',
         test: 'sh -c "foo"'
@@ -146,8 +148,9 @@ describe 'Given a function that sets up a test suite' do
         .to receive(:new)
         .with('sh -c "bar"')
         .and_return(command_double)
-      expect(KubernetesHarness::HarnessFile.execute_setup!({}))
-        .to be true
+      expect { KubernetesHarness::HarnessFile.execute_setup!({}) }
+        .to output("Bar.\n")
+        .to_stdout
     end
   end
 end
