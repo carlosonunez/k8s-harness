@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'kramdown'
+
 Gem::Specification.new do |s|
   s.name = 'k8s-harness'
   s.required_ruby_version = '~> 2.7.0'
@@ -7,7 +9,7 @@ Gem::Specification.new do |s|
   s.version     = File.read('VERSION')
   s.date        = '2020-10-28'
   s.summary     = 'Test your apps in disposable, prod-like Kubernetes clusters'
-  s.description = File.read('README.md')
+  s.description = 'Please visit the README in the Github repo linked to this gem for more info.'
   s.authors     = ['Carlos Nunez']
   s.email       = 'dev@carlosnunez.me'
   s.files       = Dir['./lib/**/*.rb', './include/**', './conf/**']
