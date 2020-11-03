@@ -6,6 +6,10 @@ on:
       do_deploy:
         description: "Should we deploy to RubyGems?"
         required: true
+      ignore_version_check:
+        description: "Should we ignore version checks during this run?"
+        required: false
+        default: no
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -18,6 +22,7 @@ jobs:
         with:
           ruby-version: '2.7'
       - name: Ensure that the VERSION file has been updated.
+        if: github.event.inputs.ignore_version_check != 'yes'
         run: make ensure_version
       - name: Deploy to RubyGems
         run: make deploy
