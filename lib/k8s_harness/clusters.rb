@@ -168,6 +168,10 @@ module KubernetesHarness
         #{header}
         #{separator}
 
+        Output:
+        #{cmd.stdout}
+
+        Errors:
         #{cmd.stderr}
       MESSAGE
     end
@@ -175,10 +179,10 @@ module KubernetesHarness
     def self.failed_cluster_error(command)
       stderr = if command.is_a? Array
                  command.map do |cmd|
-                   generate_err_msg(cmd.stderr)
+                   generate_err_msg(cmd)
                  end.flatten.join("\n\n")
                else
-                 generate_err_msg(command.stderr)
+                 generate_err_msg(command)
                end
       raise "Failed to start Kubernetes cluster. Here's why:\n\n#{stderr}"
     end
