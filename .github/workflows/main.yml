@@ -34,13 +34,6 @@ jobs:
       # Vagrant is super flaky on these runners.
       - name: Run integration tests
         run: make integration
-      - name: Execute deployment if integration tests successful and we're on master.
-        if: success() && github.ref == 'refs/heads/master'
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          workflow: Deploy to RubyGems
-          token: ${{ secrets.GITHUB_TOKEN }}
-          inputs: '{ "do_deploy": "true" }'
   deploy:
     runs-on: ubuntu-latest
     needs: integration
