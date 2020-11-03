@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'kramdown'
-
 Gem::Specification.new do |s|
   s.name = 'k8s-harness'
   s.required_ruby_version = '~> 2.7.0'
