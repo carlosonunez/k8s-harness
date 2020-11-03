@@ -1,5 +1,5 @@
 ---
-name: Run tests
+name: k8s-harness CI/CD
 on:
   pull_request:
     branches:
