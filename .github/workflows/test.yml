@@ -10,6 +10,12 @@ on:
       - 'content/**'
 
 jobs:
+  stop_if_tag:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Cancel if this workflow was invokved by a new tag
+        uses: andymckay/cancel-action@0.2
   unit:
     runs-on: ubuntu-latest
     steps:
@@ -32,3 +38,10 @@ jobs:
       # Vagrant is super flaky on these runners.
       - name: Run integration tests
         run: make integration
+      - name: Execute deployment if integration tests successful and we're on master.
+        if: success() && github.ref == 'refs/heads/master'
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: Deploy to RubyGems
+          token: ${{ secrets.GITHUB_TOKEN }}
+          inputs: '{ "do_deploy": true }'

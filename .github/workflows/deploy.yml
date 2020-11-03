@@ -1,17 +1,18 @@
 ---
 name: Deploy to RubyGems
 on:
-  push:
-    paths-ignore:
-      - "README.md"
-      - 'content/**'
-    branches:
-      - master
-
+  workflow_dispatch:
+    inputs:
+      do_deploy:
+        description: "Should we deploy to RubyGems?"
+        required: true
 jobs:
-  unit:
+  deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: "Stop the deploy if do_deploy is not set to true"
+        if: github.event.inputs.do_deploy != true
+        uses: andymckay/cancel-action@0.2
       - uses: actions/checkout@v1
       - uses: actions/setup-ruby@v1
         with:
