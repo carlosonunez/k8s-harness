@@ -44,4 +44,4 @@ jobs:
         with:
           workflow: Deploy to RubyGems
           token: ${{ secrets.GITHUB_TOKEN }}
-          inputs: '{ "do_deploy": true }'
+          inputs: '{ "do_deploy": "true" }'
