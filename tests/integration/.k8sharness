@@ -1,2 +1,2 @@
 ---
-test: echo "Your test ran successfully!"
+test: sh -c 'echo "Your test ran successfully!"'

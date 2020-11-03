@@ -19,7 +19,7 @@ module KubernetesHarness
       cluster = ClusterInfo.new(master_ip_address_command: master_ip_address_command,
                                 worker_ip_addresses_command: worker_ip_addresses_command,
                                 docker_registry_command: docker_registry_command,
-                                kubeconfig_path: cluster_kubeconfig,
+                                kubeconfig_path: 'not_yet',
                                 ssh_key_path: cluster_ssh_key)
       Metadata.write!('cluster.yaml', cluster.to_yaml)
       cluster
@@ -27,20 +27,21 @@ module KubernetesHarness
 
     def self.create_ssh_key!
       ssh_key_fp = File.join(Metadata.default_dir, 'ssh_key')
-      unless File.exist? ssh_key_fp
-        KubernetesHarness.nice_logger.info 'Creating a new SSH key for the cluster.'
-        ssh_key_command = ShellCommand.new(
-          "ssh-keygen -t rsa -f '#{ssh_key_fp}' -q -N ''"
-        )
-        raise 'Unable to create a SSH key for the cluster' unless ssh_key_command.execute!
-      end
+      return if File.exist? ssh_key_fp
+
+      KubernetesHarness.nice_logger.info 'Creating a new SSH key for the cluster.'
+      ssh_key_command = ShellCommand.new(
+        "ssh-keygen -t rsa -f '#{ssh_key_fp}' -q -N ''"
+      )
+      raise 'Unable to create a SSH key for the cluster' unless ssh_key_command.execute!
     end
 
     def self.provision!(cluster_info)
       all_results = provision_nodes_in_parallel!(cluster_info)
-      failed_results = all_results.filter { |thread| !thread.success? }
-      raise 'One or more Ansible runs failed; see logs for more info' unless failed_results.empty?
+      failures = all_results.filter { |thread| !thread.success? }
+      raise failed_cluster_error(failures) unless failures.empty?
 
+      cluster_info.kubeconfig_path = cluster_kubeconfig
       true
     end
 
@@ -57,21 +58,25 @@ module KubernetesHarness
     end
 
     def self.destroy_nodes_in_parallel!
-      KubernetesHarness.logger.debug('🚨 Deleting all nodes! 🚨')
-      vagrant_threads = []
-      Constants::ALL_NODES.each do |node|
-        KubernetesHarness.logger.debug("Starting thread for node #{node}")
-        vagrant_threads << Thread.new do
-          vagrant_command = Vagrant.new_command('destroy', ['-f', node])
-          vagrant_command.execute!
-          vagrant_command
+      if cluster_running?
+        KubernetesHarness.logger.debug('🚨 Deleting all nodes! 🚨')
+        vagrant_threads = []
+        Constants::ALL_NODES.each do |node|
+          KubernetesHarness.logger.debug("Starting thread for node #{node}")
+          vagrant_threads << Thread.new do
+            vagrant_command = Vagrant.new_command('destroy', ['-f', node])
+            vagrant_command.execute!
+            vagrant_command
+          end
         end
-      end
-      results = vagrant_threads.each(&:join).map(&:value)
-      failures = results.filter { |result| !result.success? }
-      raise failed_cluster_destroy_error(failures) unless failures.empty?
+        results = vagrant_threads.each(&:join).map(&:value)
+        failures = results.filter { |result| !result.success? }
+        raise failed_cluster_destroy_error(failures) unless failures.empty?
 
-      delete_cluster_yaml_and_ssh_key!
+        delete_cluster_yaml_and_ssh_key!
+      else
+        KubernetesHarness.nice_logger.info('No clusters found to destroy. Stopping.')
+      end
     end
 
     def self.provision_nodes_in_parallel!(cluster_info)
@@ -114,14 +119,17 @@ module KubernetesHarness
     def self.cluster_kubeconfig
       args = [
         '-c',
-        '"cat /etc/rancher/k3s/k3s.yaml"',
+        '"sudo cat /etc/rancher/k3s/k3s.yaml"',
         Constants::MASTER_NODE_NAME.to_s
       ]
       command = Vagrant.new_command('ssh', args)
       command.execute!
-      path = command.stdout
-      KubernetesHarness.logger.warn('No kubeconfig created!') if path.empty?
-      path
+      if command.stdout.empty?
+        KubernetesHarness.logger.warn('No kubeconfig created!')
+        return
+      end
+      Metadata.write!('kubeconfig', command.stdout)
+      File.join Metadata.default_dir, 'kubeconfig'
     end
 
     def self.cluster_ssh_key
@@ -152,11 +160,25 @@ module KubernetesHarness
       raise failed_cluster_error(failures) unless failures.empty?
     end
 
+    def self.generate_err_msg(cmd)
+      header = "From command '#{cmd.command}':"
+      separator = '-' * (header.length + 4)
+
+      <<~MESSAGE
+        #{header}
+        #{separator}
+
+        #{cmd.stderr}
+      MESSAGE
+    end
+
     def self.failed_cluster_error(command)
       stderr = if command.is_a? Array
-                 [command.map(&:stderr)].flatten.join("\n")
+                 command.map do |cmd|
+                   generate_err_msg(cmd.stderr)
+                 end.flatten.join("\n\n")
                else
-                 command.stderr
+                 generate_err_msg(command.stderr)
                end
       raise "Failed to start Kubernetes cluster. Here's why:\n\n#{stderr}"
     end
@@ -174,6 +196,12 @@ module KubernetesHarness
       ['ssh_key', 'ssh_key.pub', 'cluster.yaml'].each do |file|
         Metadata.delete!(file)
       end
+    end
+
+    def self.cluster_running?
+      vagrant_status_command = Vagrant.new_command('global-status')
+      vagrant_status_command.execute!
+      vagrant_status_command.stdout.match?(/k3s-/)
     end
   end
 end

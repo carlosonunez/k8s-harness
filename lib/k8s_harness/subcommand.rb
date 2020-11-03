@@ -29,20 +29,22 @@ module KubernetesHarness
       KubernetesHarness::HarnessFile.validate(options)
     end
 
-    def self.destroy(_options = {})
+    def self.destroy(options = {})
+      return true if options.to_h[:show_usage]
+
       KubernetesHarness.nice_logger.info('Destroying your cluster (if any found).')
       KubernetesHarness::Clusters.destroy_existing!
     end
 
     def self.print_warning_if_teardown_disabled(teardown_flag)
-      if teardown_flag
-        KubernetesHarness.nice_logger.warn(
-          <<~MESSAGE.strip
-            Teardown is disabled. Your cluster will stay up until you run \
-            'k8s-harness destroy'.
-          MESSAGE
-        )
-      end
+      return unless teardown_flag
+
+      KubernetesHarness.nice_logger.warn(
+        <<~MESSAGE.strip
+          Teardown is disabled. Your cluster will stay up until you run \
+          'k8s-harness destroy'.
+        MESSAGE
+      )
     end
 
     def self.create!
@@ -85,13 +87,14 @@ module KubernetesHarness
       KubernetesHarness.nice_logger.info(
         <<~MESSAGE.strip
           Cluster has been created. Details are below and in YAML at #{cluster_info_yaml_path}:
+
+              * Master address: '#{cluster_info.master_ip_address}'
+              * Worker addresses: #{cluster_info.worker_ip_addresses}
+              * Docker registry address: '#{cluster_info.docker_registry_address}'
+              * Kubeconfig path: #{cluster_info.kubeconfig_path}
+              * SSH key path: #{cluster_info.ssh_key_path}
         MESSAGE
       )
-      KubernetesHarness.nice_logger.info("  Master address: '#{cluster_info.master_ip_address}'")
-      KubernetesHarness.nice_logger.info("  Worker addresses: #{cluster_info.worker_ip_addresses}")
-      KubernetesHarness.nice_logger.info("  Docker registry address: '#{cluster_info.docker_registry_address}'")
-      KubernetesHarness.nice_logger.info("  Kubeconfig path: #{cluster_info.kubeconfig_path}")
-      KubernetesHarness.nice_logger.info("  SSH key path: #{cluster_info.ssh_key_path}")
     end
   end
 end

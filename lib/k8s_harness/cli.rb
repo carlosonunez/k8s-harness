@@ -49,7 +49,7 @@ module KubernetesHarness
           opts.separator ''
           opts.separator 'Commands:'
           opts.on('-h', '--help', 'Displays this help message') do
-            add_option(options: { show_usage: true }, subcommand: :validate)
+            add_option(options: { show_usage: true }, subcommand: :destroy)
             puts opts
           end
         end

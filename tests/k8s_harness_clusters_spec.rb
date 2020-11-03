@@ -130,7 +130,9 @@ describe 'Given a function that creates new disposable clusters' do
       @mocked_env = {
         VAGRANT_CWD: KubernetesHarness::Clusters::Metadata.default_dir,
         ANSIBLE_HOST_KEY_CHECKING: 'no',
-        ANSIBLE_SSH_ARGS: '-o IdentitiesOnly=true'
+        ANSIBLE_COMMAND_WARNINGS: 'False',
+        ANSIBLE_SSH_ARGS: '-o IdentitiesOnly=true',
+        ANSIBLE_PYTHON_INTERPRETER: '/usr/bin/python'
       }
     end
 
@@ -150,15 +152,16 @@ describe 'Given a function that creates new disposable clusters' do
        docker_registry_command].each do |kvp|
         double_name = kvp.keys.first
         command = kvp[double_name]
+        vagrant_env = @mocked_env.select { |k| k.to_s.match?(/VAGRANT/) }
         shell_command_mock = double(KubernetesHarness::ShellCommand,
                                     command: command,
                                     execute!: true,
                                     stdout: '',
                                     exitcode: 0,
-                                    environment: @mocked_env)
+                                    environment: vagrant_env)
         allow(KubernetesHarness::ShellCommand)
           .to receive(:new)
-          .with(command, environment: @mocked_env)
+          .with(command, environment: vagrant_env)
           .and_return(shell_command_mock)
         all_command_mocks[double_name] = shell_command_mock
       end
@@ -172,9 +175,6 @@ describe 'Given a function that creates new disposable clusters' do
         .to receive(:vagrant_up_disposable_cluster_or_exit!)
         .and_return true
       allow(KubernetesHarness::Clusters)
-        .to receive(:cluster_kubeconfig)
-        .and_return '/path/to/kubeconfig'
-      allow(KubernetesHarness::Clusters)
         .to receive(:cluster_ssh_key)
         .and_return '/path/to/ssh/key'
       expect(KubernetesHarness::Clusters::ClusterInfo)
@@ -182,11 +182,11 @@ describe 'Given a function that creates new disposable clusters' do
         .with(master_ip_address_command: all_command_mocks[:master],
               worker_ip_addresses_command: [all_command_mocks[:worker]],
               docker_registry_command: all_command_mocks[:registry],
-              kubeconfig_path: '/path/to/kubeconfig',
+              kubeconfig_path: 'not_yet',
               ssh_key_path: '/path/to/ssh/key')
       expect(KubernetesHarness::Clusters::Metadata)
         .to receive(:write!)
-        .with('cluster.yaml', "---\n")
+        .with('cluster.yaml', /^--- {0,}\n/)
       FileUtils.mkdir_p('/foo')
       KubernetesHarness::Clusters.create!
     end
@@ -198,7 +198,9 @@ describe 'Given a function that creates new disposable clusters' do
       @mocked_env = {
         VAGRANT_CWD: KubernetesHarness::Clusters::Metadata.default_dir,
         ANSIBLE_HOST_KEY_CHECKING: 'no',
-        ANSIBLE_SSH_ARGS: '-o IdentitiesOnly=true'
+        ANSIBLE_COMMAND_WARNINGS: 'False',
+        ANSIBLE_SSH_ARGS: '-o IdentitiesOnly=true',
+        ANSIBLE_PYTHON_INTERPRETER: '/usr/bin/python'
       }
     end
     example 'Then a cluster is provisioned once it is created' do
@@ -220,7 +222,6 @@ describe 'Given a function that creates new disposable clusters' do
         worker_ip_addresses: ['4.5.6.7'],
         docker_registry_address: '8.9.0.1',
         kubernetes_cluster_token: '12345',
-        kubeconfig_path: '/metadata_dir/inventory',
         ssh_key_path: '/metadata_dir/ssh_key'
       )
       ansible_playbook_master_command = ansible_playbook_base_command.gsub('<HOST>', '1.2.3.4')
@@ -237,20 +238,24 @@ describe 'Given a function that creates new disposable clusters' do
                                     stdout: '',
                                     exitcode: 0,
                                     success?: true)
+        ansible_env = @mocked_env.select { |key| key.match? 'ANSIBLE' }
         allow(KubernetesHarness::ShellCommand)
           .to receive(:new)
-          .with(command,
-                environment: @mocked_env.reject do |key|
-                               key.match? 'VAGRANT'
-                             end)
+          .with(command, environment: ansible_env)
           .and_return(shell_command_mock)
       end
+      allow(KubernetesHarness::Clusters)
+        .to receive(:cluster_kubeconfig)
+        .and_return '/path/to/kubeconfig'
       allow(KubernetesHarness::Clusters)
         .to receive(:create_ssh_key!)
         .and_return true
       allow(KubernetesHarness::Clusters::Metadata)
         .to receive(:default_dir)
         .and_return('/metadata_dir')
+      expect(cluster_info_double)
+        .to receive(:kubeconfig_path=)
+        .with '/path/to/kubeconfig'
       expect(KubernetesHarness::Clusters.provision!(cluster_info_double))
         .to be true
     end

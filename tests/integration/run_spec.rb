@@ -8,17 +8,18 @@ describe 'Given the k8s-harness app' do
     before(:each) do
       FakeFS.deactivate!
       ENV['PWD'] = "#{ENV['PWD']}/tests/integration"
-      argv = ['run']
-      KubernetesHarness::CLI.parse(argv)
     end
 
-    after(:each) do
+    after(:each) do |example|
+      KubernetesHarness::CLI.parse(['destroy']) if example.exception
       FakeFS.activate!
     end
 
+    # We need $STDOUT and $STDERR for seeing whether our test ran.
     example 'Then a test should have executed', :integration do
-      expect($STDERR).to eq ''
-      expect($STDOUT).to match(/Your test ran successfully!/)
+      expect { KubernetesHarness::CLI.parse(['run']) }
+        .to output(/Your test ran successfully!/)
+        .to_stdout
     end
   end
 end

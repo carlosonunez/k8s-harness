@@ -2,3 +2,4 @@
 +features @allow_any_lang Allow users to run tests in any language.
 +features @no_harcoded_refs Remove hardcoded refs to k3s clusters in clusters.rb
 +feature @command_tracing Add a trace ID for every command call
++feature @prepackaged_k8s_clusters OH MY GOD. We could package Kubernetes clusters for k8s-harness like Vagrantfiles!

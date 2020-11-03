@@ -1,0 +1,22 @@
+---
+name: Deploy to RubyGems
+on:
+  push:
+    paths-ignore:
+      - "README.md"
+      - 'content/**'
+    branches:
+      - master
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-ruby@v1
+        with:
+          ruby-version: '2.7'
+      - name: Ensure that the VERSION file has been updated.
+        run: make ensure_version
+      - name: Deploy to RubyGems
+        run: make deploy

@@ -17,7 +17,9 @@ module KubernetesHarness
           log_new_run(playbook_fp, inventory_fp, ssh_key_path, ip_address, extra_vars)
           command_env = {
             ANSIBLE_HOST_KEY_CHECKING: 'no',
-            ANSIBLE_SSH_ARGS: '-o IdentitiesOnly=true'
+            ANSIBLE_SSH_ARGS: '-o IdentitiesOnly=true',
+            ANSIBLE_COMMAND_WARNINGS: 'False',
+            ANSIBLE_PYTHON_INTERPRETER: '/usr/bin/python'
           }
           KubernetesHarness::ShellCommand.new(
             command(playbook_fp, inventory_fp, ssh_key_path, ip_address, extra_vars),

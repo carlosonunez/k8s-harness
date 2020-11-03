@@ -122,3 +122,36 @@ I don't need to provision my own Kubernetes clusters externally).
 ### My production Kubernetes clusters has `$x`. How do I install `$x` in k8s-harness?
 
 This is not supported yet, but is on the roadmap!
+
+## Contributing!
+
+Thanks for helping make `k8s-harness` better!
+
+Contributing is simple.
+
+### What You'll Need To Install
+
+- Vagrant
+- Virtualbox
+- Ansible
+
+### How to contribute
+
+1. Fork this repository.
+2. Add a test in `tests/`.
+
+   **NOTE**: If you're adding a new feature to `k8s-harness`, you'll also need to add
+   an integration test in `tests/integration` to describe what the feature does, how users
+   should use it, and what they can expect when it runs.
+   See [the integration test for `run`](./tests/integration/run_spec.rb) for an example.
+
+3. Add your code in `lib`.
+4. Run your unit tests: `make unit`
+5. Run the integration test to ensure that everything works: `make integration`
+6. Push your commits up to your fork, then submit a new pull request into this repo!
+
+### A note about pushing new gems
+
+You're free to fork this and create your own gems from a forked instance of this codebase. Note
+that the CD that's included in the [`.github`](./.github) directory requires that you
+define `GEM_HOST_API_KEY` in your build.

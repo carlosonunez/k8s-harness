@@ -1,0 +1,34 @@
+---
+name: Run tests
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    paths-ignore:
+      - "README.md"
+      - 'content/**'
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-ruby@v1
+        with:
+          ruby-version: '2.7'
+      - name: Run unit tests
+        run: make test
+  # Our integration tests require Vagrant and VirtualBox.
+  # Only the MacOS builders supported VT-x, which is required by VirtualBox.
+  integration:
+    needs: unit
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-ruby@v1
+      - name: Install Ansible
+        run: brew install ansible
+      # Vagrant is super flaky on these runners.
+      - name: Run integration tests
+        run: make integration

@@ -6,9 +6,7 @@ module KubernetesHarness
     module Vagrant
       def self.new_command(command, args = nil)
         command_env = {
-          VAGRANT_CWD: Metadata.default_dir,
-          ANSIBLE_HOST_KEY_CHECKING: 'no',
-          ANSIBLE_SSH_ARGS: '-o IdentitiesOnly=true'
+          VAGRANT_CWD: Metadata.default_dir
         }
         command = "vagrant #{command}"
         command = "#{command} #{[args].flatten.join(' ')}" unless args.nil?
